@@ -33,10 +33,10 @@ if st.button("Mulai Proses"):
                         teks_hasil = f"PO: {kode_po} | Ket: {keterangan}"
                         
                         # Logika Auto-Font Size
+                        # Menggunakan font "helv" karena didukung secara stabil di library
                         fontsize = 20
                         while fontsize > 8:
-                            # Hitung lebar teks dan sesuaikan agar tidak keluar kotak
-                            text_len = fitz.get_text_length(teks_hasil, fontname="helv-bold", fontsize=fontsize)
+                            text_len = fitz.get_text_length(teks_hasil, fontname="helv", fontsize=fontsize)
                             if text_len < (rect.width - 20):
                                 break
                             fontsize -= 1
@@ -51,7 +51,7 @@ if st.button("Mulai Proses"):
                             fontsize=fontsize, 
                             color=(0, 0, 0), 
                             align=1,
-                            fontname="helv-bold"
+                            fontname="helv" 
                         )
                         ditemukan_counter += 1
             
