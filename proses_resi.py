@@ -14,7 +14,7 @@ if st.button("Mulai Proses"):
         try:
             # 1. Baca Excel
             df = pd.read_excel(file_excel)
-            # Pastikan kolom NO PESANAN dibaca sebagai teks untuk kecocokan akurat
+            # Pastikan NO PESANAN dibaca sebagai string bersih
             df['NO PESANAN'] = df['NO PESANAN'].astype(str).str.strip()
             data_po = dict(zip(df['NO PESANAN'], df['KODE PO']))
             
@@ -23,35 +23,37 @@ if st.button("Mulai Proses"):
             ditemukan_counter = 0
             
             for page in doc:
-                text = page.get_text()
+                # Deteksi ukuran dokumen secara otomatis
                 page_width = page.rect.width
+                page_height = page.rect.height
+                
+                text = page.get_text()
                 
                 for no_pesanan, kode_po in data_po.items():
+                    # Cek kecocokan nomor pesanan dalam teks[cite: 2]
                     if no_pesanan in text:
-                        # Definisikan area teks di bagian atas kertas
-                        rect = fitz.Rect(10, 10, page_width - 10, 50)
+                        # Tentukan area teks (margin 5% dari lebar/tinggi)
+                        margin_x = page_width * 0.05
+                        margin_y = page_height * 0.02
+                        rect = fitz.Rect(margin_x, margin_y, page_width - margin_x, margin_y + 40)
+                        
                         teks_hasil = f"PO: {kode_po} | Ket: {keterangan}"
                         
-                        # Logika Auto-Font Size
-                        # Menggunakan font "helv" karena didukung secara stabil di library
-                        fontsize = 20
-                        while fontsize > 8:
-                            text_len = fitz.get_text_length(teks_hasil, fontname="helv", fontsize=fontsize)
-                            if text_len < (rect.width - 20):
-                                break
-                            fontsize -= 1
+                        # Font size otomatis proporsional dengan lebar kertas
+                        fontsize = max(10, int(page_width * 0.06)) 
                         
-                        # Tambahkan latar belakang putih agar teks tertutup rapi
-                        page.draw_rect(rect, color=(1, 1, 1), fill=(1, 1, 1))
+                        # Tambahkan latar belakang putih dengan overlay=True
+                        page.draw_rect(rect, color=(1, 1, 1), fill=(1, 1, 1), overlay=True)
                         
-                        # Masukkan teks dengan ukuran yang sudah disesuaikan secara otomatis
+                        # Masukkan teks dengan overlay=True agar selalu terlihat[cite: 1]
                         page.insert_textbox(
                             rect, 
                             teks_hasil, 
                             fontsize=fontsize, 
                             color=(0, 0, 0), 
                             align=1,
-                            fontname="helv" 
+                            fontname="helv",
+                            overlay=True 
                         )
                         ditemukan_counter += 1
             
@@ -67,10 +69,13 @@ if st.button("Mulai Proses"):
                     file_name="Resi_Selesai.pdf",
                     mime="application/pdf"
                 )
+            
+            # Notifikasi hasil
             st.success(f"Proses selesai! Ditemukan {ditemukan_counter} kecocokan.")
+            if ditemukan_counter == 0:
+                st.warning("Perhatian: Tidak ada nomor pesanan yang cocok. Pastikan format teks di PDF dan Excel sama persis.")
             
         except Exception as e:
             st.error(f"Terjadi kesalahan teknis: {e}")
-            st.write("Pastikan file Excel memiliki kolom 'NO PESANAN' dan 'KODE PO'.")
     else:
         st.error("Mohon upload kedua file terlebih dahulu!")
