@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import fitz  # PyMuPDF
-import os
 
 st.title("Sistem Cetak PO Otomatis Resi Shopee")
 
@@ -14,12 +13,10 @@ if st.button("Mulai Proses"):
     if file_pdf and file_excel:
         try:
             # 1. Baca Excel
-            df_temp = pd.read_excel(file_excel, header=None)
-            header_idx = df_temp[df_temp.apply(lambda row: row.astype(str).str.contains('NO PESANAN').any(), axis=1)].index[0]
-            
-            df = pd.read_excel(file_excel, header=header_idx)
-            df.columns = df.columns.str.strip()
-            data_po = df.set_index('NO PESANAN')['KODE PO'].to_dict()
+            df = pd.read_excel(file_excel)
+            # Pastikan kolom NO PESANAN dibaca sebagai teks untuk kecocokan akurat
+            df['NO PESANAN'] = df['NO PESANAN'].astype(str).str.strip()
+            data_po = dict(zip(df['NO PESANAN'], df['KODE PO']))
             
             # 2. Proses PDF
             doc = fitz.open(stream=file_pdf.read(), filetype="pdf")
@@ -27,27 +24,34 @@ if st.button("Mulai Proses"):
             
             for page in doc:
                 text = page.get_text()
-                # Dapatkan ukuran halaman untuk membuat posisi dinamis
-                page_rect = page.rect
-                page_width = page_rect.width
+                page_width = page.rect.width
                 
                 for no_pesanan, kode_po in data_po.items():
-                    if str(no_pesanan) in text:
-                        # Membuat posisi dinamis berdasarkan lebar kertas
+                    if no_pesanan in text:
+                        # Definisikan area teks di bagian atas kertas
                         rect = fitz.Rect(10, 10, page_width - 10, 50)
-                        
                         teks_hasil = f"PO: {kode_po} | Ket: {keterangan}"
                         
-                        # Menambahkan latar belakang putih agar teks terbaca jelas
+                        # Logika Auto-Font Size
+                        fontsize = 20
+                        while fontsize > 8:
+                            # Hitung lebar teks dan sesuaikan agar tidak keluar kotak
+                            text_len = fitz.get_text_length(teks_hasil, fontname="helv-bold", fontsize=fontsize)
+                            if text_len < (rect.width - 20):
+                                break
+                            fontsize -= 1
+                        
+                        # Tambahkan latar belakang putih agar teks tertutup rapi
                         page.draw_rect(rect, color=(1, 1, 1), fill=(1, 1, 1))
                         
-                        # Memasukkan teks
+                        # Masukkan teks dengan ukuran yang sudah disesuaikan secara otomatis
                         page.insert_textbox(
                             rect, 
                             teks_hasil, 
-                            fontsize=12, 
+                            fontsize=fontsize, 
                             color=(0, 0, 0), 
-                            align=1 
+                            align=1,
+                            fontname="helv-bold"
                         )
                         ditemukan_counter += 1
             
@@ -63,7 +67,6 @@ if st.button("Mulai Proses"):
                     file_name="Resi_Selesai.pdf",
                     mime="application/pdf"
                 )
-                
             st.success(f"Proses selesai! Ditemukan {ditemukan_counter} kecocokan.")
             
         except Exception as e:
