@@ -64,4 +64,4 @@ if st.button("Proses & Siapkan Unduhan"):
         except Exception as e:
             st.error(f"Error: {e}")
     else:
-        st.error("Mohon untuk upload kedua file terlebih dahulu!")
+        st.error("Mohon upload kedua file terlebih dahulu!")
